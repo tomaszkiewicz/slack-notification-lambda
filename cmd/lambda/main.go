@@ -12,41 +12,6 @@ import (
 	"os"
 )
 
-type Request struct {
-	Records []struct {
-		SNS struct {
-			Type      string `json:"Type"`
-			Timestamp string `json:"Timestamp"`
-			Message   string `json:"Message"`
-		} `json:"Sns"`
-	} `json:"Records"`
-
-	// For simplified alerts
-	Message string `json:"Message"`
-	Color   string `json:Color`
-}
-
-type SNSMessage struct {
-	// Cloudwatch Alerts
-	AlarmName      string `json:"AlarmName"`
-	NewStateValue  string `json:"NewStateValue"`
-	NewStateReason string `json:"NewStateReason"`
-
-	// Bounce and complaints for SES
-	NotificationType string `json:"NotificationType"`
-}
-
-type SlackMessage struct {
-	Text        string       `json:"text"`
-	Attachments []Attachment `json:"attachments"`
-}
-
-type Attachment struct {
-	Text  string `json:"text"`
-	Color string `json:"color"`
-	Title string `json:"title"`
-}
-
 func handler(request Request) error {
 	if request.Message != "" {
 		// handle simple message
@@ -62,7 +27,6 @@ func handler(request Request) error {
 		var snsMessage SNSMessage
 
 		err := json.Unmarshal([]byte(request.Records[0].SNS.Message), &snsMessage)
-
 		if err != nil {
 			return err
 		}
@@ -88,21 +52,24 @@ func handler(request Request) error {
 
 func buildCloudwatchAlertSlackMessage(message SNSMessage) SlackMessage {
 	color := "gray"
+	emoji := ":question:"
 
 	switch message.NewStateValue {
 	case "ALARM":
 		color = "danger"
+		emoji = ":bomb:"
 	case "OK":
 		color = "good"
+		emoji = ":beer:"
 	}
 
 	return SlackMessage{
-		Text: fmt.Sprintf("`%s`", message.AlarmName),
+		Text: fmt.Sprintf("%s `%s`", emoji, message.AlarmName),
 		Attachments: []Attachment{
 			{
 				Text:  message.NewStateReason,
 				Color: color,
-				Title: "Reason",
+				Title: "Details",
 			},
 		},
 	}
